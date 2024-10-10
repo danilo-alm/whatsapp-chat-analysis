@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 from dateutil import parser as auto_date_parser
 from typing import TextIO
+import unicodedata
 
 
 class Person:
@@ -31,29 +32,37 @@ class WhatsappMessage:
         self.date = date
         self.sender = sender
         self.content = content
+    
+    def __str__(self):
+        return f"{self.date} - {self.sender.name}: {self.content}"
+
+
+class WhatsappMessageParser:
+    def __normalize(s: str):
+        return ''.join(c for c in unicodedata.normalize('NFD', s)
+            if unicodedata.category(c) != 'Mn').lower()
 
     @staticmethod
-    def from_string(message: str, people: People, date_format: str):
+    def parse(message: str, people: People, date_format: str):
         pattern: str = r'\[(.*?)\] (.*?): (.*)'
         match = re.match(pattern, message, flags=re.UNICODE)
 
         if not match:
             return
 
-        date_str = match.group(1)  # date and time
-        contact = match.group(2)   # contact name
-        message = match.group(3)   # message content
+        date_str = match.group(1)
+        contact = match.group(2)
+        message = match.group(3)
 
         try:
             parsed_date = datetime.strptime(date_str, date_format)
         except ValueError:
             parsed_date = auto_date_parser.parse(date_str)
 
+        message = WhatsappMessageParser.__normalize(message)
         person = people.get(contact) or people.add(Person(contact))
+
         return WhatsappMessage(parsed_date, person, message)
-    
-    def __str__(self):
-        return f"{self.date} - {self.sender.name}: {self.content}"
 
 
 class WhatsappChatParser:
@@ -71,7 +80,7 @@ class WhatsappChatParser:
                 break
 
             buffer = re.sub(r'[\u200E\u200F\u202A-\u202E]', '', buffer)
-            parsed = WhatsappMessage.from_string(buffer, people, date_format)
+            parsed = WhatsappMessageParser.parse(buffer, people, date_format)
 
             if parsed:
                 messages.append(parsed)
