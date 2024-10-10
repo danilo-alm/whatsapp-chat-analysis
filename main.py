@@ -6,18 +6,9 @@ import argparse
 
 def main(args):
     people = People()
-    messages = []
-
-    # matches invisible control characters
-    pattern = r'[\u200E\u200F\u202A-\u202E]'
     
     with open(args.filename, 'r') as rf:
-        messages_raw = re.sub(pattern, '', rf.read())
-    
-    for message in messages_raw:
-        messages.append(Message.parse(message, people))
-    
-    # FIX: messages with explicit linebreaks \n are parsed as new messages after \n
+        messages: list[Message] = parse_messages(rf.read(), people)
 
 
 class Person:
@@ -52,6 +43,9 @@ class Message:
     def parse(message: str, people: People, pattern: str = r'\[(.*?)\] (.*?): (.*)'):
         match = re.match(pattern, message, flags=re.UNICODE)
 
+        if not match:
+            return
+
         date_str = match.group(1)  # date and time
         contact = match.group(2)   # contact name
         message = match.group(3)   # message content
@@ -68,6 +62,22 @@ class Message:
         return f"{self.date} - {self.sender.name}: {self.content}"
 
 
+def parse_messages(raw: str, people: People):
+    messages: list[Message] = []
+    lines = re.sub(r'[\u200E\u200F\u202A-\u202E]', '', raw).splitlines()
+    last_message = None
+
+    for line in lines:
+        parsed = Message.parse(line, people)
+        if parsed:
+            messages.append(parsed)
+            last_message = parsed
+        else:
+            last_message.content += '\n' + line
+
+    return messages
+            
+    
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename')
