@@ -5,8 +5,8 @@ import argparse
 
 
 def main(args):
-    messages, people = parse_file(args.filename)
-    
+    messages, people = parse_file(args.filename, args.dateformat)
+
 
 class Person:
     def __init__(self, name):
@@ -37,7 +37,8 @@ class Message:
         self.content = content
 
     @staticmethod
-    def parse(message: str, people: People, pattern: str = r'\[(.*?)\] (.*?): (.*)'):
+    def parse(message: str, people: People, date_format: str):
+        pattern: str = r'\[(.*?)\] (.*?): (.*)'
         match = re.match(pattern, message, flags=re.UNICODE)
 
         if not match:
@@ -48,10 +49,10 @@ class Message:
         message = match.group(3)   # message content
 
         try:
-            parsed_date = datetime.strptime(date_str, "%d/%m/%Y, %H:%M:%S")
+            parsed_date = datetime.strptime(date_str, date_format)
         except ValueError:
             parsed_date = auto_date_parser.parse(date_str)
-        
+
         person = people.get(contact) or people.add(Person(contact))
         return Message(parsed_date, person, message)
     
@@ -59,13 +60,13 @@ class Message:
         return f"{self.date} - {self.sender.name}: {self.content}"
 
 
-def parse_messages(raw: str, people: People):
+def parse_messages(raw: str, people: People, date_format: str):
     messages: list[Message] = []
     lines = re.sub(r'[\u200E\u200F\u202A-\u202E]', '', raw).splitlines()
     last_message = None
 
     for line in lines:
-        parsed = Message.parse(line, people)
+        parsed = Message.parse(line, people, date_format)
         if parsed:
             messages.append(parsed)
             last_message = parsed
@@ -75,11 +76,11 @@ def parse_messages(raw: str, people: People):
     return messages
 
 
-def parse_file(filename):
+def parse_file(filename, date_format):
     people = People()
     
     with open(filename, 'r') as rf:
-        messages: list[Message] = parse_messages(rf.read(), people)
+        messages: list[Message] = parse_messages(rf.read(), people, date_format)
     
     return messages, people
             
@@ -87,6 +88,7 @@ def parse_file(filename):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename')
+    parser.add_argument('--dateformat', default='%d/%m/%Y, %H:%M:%S')
     return parser.parse_args()
     
 
