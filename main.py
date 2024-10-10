@@ -5,11 +5,8 @@ import argparse
 
 
 def main(args):
-    people = People()
+    messages, people = parse_file(args.filename)
     
-    with open(args.filename, 'r') as rf:
-        messages: list[Message] = parse_messages(rf.read(), people)
-
 
 class Person:
     def __init__(self, name):
@@ -76,6 +73,15 @@ def parse_messages(raw: str, people: People):
             last_message.content += '\n' + line
 
     return messages
+
+
+def parse_file(filename):
+    people = People()
+    
+    with open(filename, 'r') as rf:
+        messages: list[Message] = parse_messages(rf.read(), people)
+    
+    return messages, people
             
     
 def parse_args():
