@@ -7,7 +7,7 @@ from message_analyzer import MessagesAnalyzer, AnalysisResults
 
 
 def main(args):
-    messages, people = WhatsappChatParser.parse(open(args.filename, 'r'), args.dateformat)
+    messages, people = WhatsappChatParser.parse(open(args.filename, 'r'), args.dateformat, args.group)
     
     analyzer: list[AnalysisResults] = MessagesAnalyzer(
         stop_words=read_wordlist_dir('stop_words'),
@@ -54,6 +54,7 @@ def parse_args():
     parser.add_argument('filename')
     parser.add_argument('--dateformat', default='%d/%m/%Y, %H:%M:%S')
     parser.add_argument('--output-dir', default='results')
+    parser.add_argument('-g', '--group', action='store_true')
     return parser.parse_args()
     
 

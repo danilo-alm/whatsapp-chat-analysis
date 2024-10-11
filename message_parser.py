@@ -38,14 +38,17 @@ class WhatsappMessage:
 
 
 class WhatsappMessageParser:
+    def __init__(self, date_format: str, group: bool = False):
+        self.date_format = date_format
+        self.people = People()
+        self.pattern = r'(\d{2}/\d{2}/\d{4} \d{2}:\d{2}) - (.*?): (.*)' if group else r'\[(.*?)\] (.*?): (.*)'
+    
     def __normalize(s: str):
         return ''.join(c for c in unicodedata.normalize('NFD', s)
             if unicodedata.category(c) != 'Mn').lower()
 
-    @staticmethod
-    def parse(message: str, people: People, date_format: str):
-        pattern: str = r'\[(.*?)\] (.*?): (.*)'
-        match = re.match(pattern, message, flags=re.UNICODE)
+    def parse(self, message: str):
+        match = re.match(self.pattern, message, flags=re.UNICODE)
 
         if not match:
             return
@@ -55,21 +58,21 @@ class WhatsappMessageParser:
         message = match.group(3)
 
         try:
-            parsed_date = datetime.strptime(date_str, date_format)
+            parsed_date = datetime.strptime(date_str, self.date_format)
         except ValueError:
             parsed_date = auto_date_parser.parse(date_str)
 
         message = WhatsappMessageParser.__normalize(message)
-        person = people.get(contact) or people.add(Person(contact))
+        person = self.people.get(contact) or self.people.add(Person(contact))
 
         return WhatsappMessage(parsed_date, person, message)
 
 
 class WhatsappChatParser:
     @staticmethod
-    def parse(file: TextIO, date_format: str):
+    def parse(file: TextIO, date_format: str, group: bool = False):
+        wmparser = WhatsappMessageParser(date_format, group)
         messages: list[WhatsappMessage] = []
-        people = People()
 
         buffer = None
         last_message = None
@@ -80,12 +83,13 @@ class WhatsappChatParser:
                 break
 
             buffer = re.sub(r'[\u200E\u200F\u202A-\u202E]', '', buffer)
-            parsed = WhatsappMessageParser.parse(buffer, people, date_format)
+            parsed = wmparser.parse(buffer)
 
             if parsed:
                 messages.append(parsed)
                 last_message = parsed
             else:
-                last_message.content += '\n' + buffer
+                if last_message:
+                    last_message.content += '\n' + buffer
 
-        return messages, people
+        return messages, wmparser.people
