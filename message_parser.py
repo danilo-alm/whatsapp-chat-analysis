@@ -41,21 +41,27 @@ class WhatsappMessageParser:
     def __init__(self, date_format: str, group: bool = False):
         self.date_format = date_format
         self.people = People()
-        self.pattern = r'(\d{2}/\d{2}/\d{4} \d{2}:\d{2}) - (.*?): (.*)' if group else r'\[(.*?)\] (.*?): (.*)'
+        
+        pattern = r'(\d{2}/\d{2}/\d{4} \d{2}:\d{2}) - (.*?): (.*)' if group else r'\[(.*?)\] (.*?): (.*)'
+        self.message_data_pattern = re.compile(pattern, flags=re.UNICODE)
+        
+        # punctuation and invisible characters
+        pattern = r"[!\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]"
+        self.punctuation_pattern = re.compile(pattern, flags=re.UNICODE)
     
     def __normalize(s: str):
         return ''.join(c for c in unicodedata.normalize('NFD', s)
             if unicodedata.category(c) != 'Mn').lower()
 
     def parse(self, message: str):
-        match = re.match(self.pattern, message, flags=re.UNICODE)
+        match = self.message_data_pattern.match(message)
 
         if not match:
             return
 
         date_str = match.group(1)
         contact = match.group(2)
-        message = match.group(3)
+        message = self.punctuation_pattern.sub('', match.group(3))
 
         try:
             parsed_date = datetime.strptime(date_str, self.date_format)
@@ -73,6 +79,7 @@ class WhatsappChatParser:
     def parse(file: TextIO, date_format: str, group: bool = False):
         wmparser = WhatsappMessageParser(date_format, group)
         messages: list[WhatsappMessage] = []
+        invisible_chars_pattern = re.compile(r'[\u200E\u200F\u202A-\u202E]', flags=re.UNICODE)
 
         buffer = None
         last_message = None
@@ -82,7 +89,7 @@ class WhatsappChatParser:
             if not buffer:
                 break
 
-            buffer = re.sub(r'[\u200E\u200F\u202A-\u202E]', '', buffer)
+            buffer = invisible_chars_pattern.sub('', buffer)
             parsed = wmparser.parse(buffer)
 
             if parsed:
