@@ -1,28 +1,34 @@
 import argparse
-from message_parser import WhatsappChatParser, WhatsappMessage
 import os
 import unicodedata
 
+from message_parser import WhatsappChatParser 
+from message_analyzer import MessagesAnalyzer, AnalysisResults
+
 
 def main(args):
-    stop_words = read_wordlist_dir('stop_words')
-    swear_words = read_wordlist_dir('swear_words')
+    messages, people = WhatsappChatParser.parse(open(args.filename, 'r'), args.dateformat)
+    
+    analyzer: list[AnalysisResults] = MessagesAnalyzer(
+        stop_words=read_wordlist_dir('stop_words'),
+        swear_words=read_wordlist_dir('swear_words')
+    )
+    
+    output_dirs = {p.name: os.path.join(args.output_dir, p.name) for p in people.people}
+    for r in output_dirs.values():
+        os.makedirs(r, exist_ok=True)
 
-    with open(args.filename, 'r') as rf:
-        messages, people = WhatsappChatParser.parse(rf, args.dateformat)
+    results: list[AnalysisResults] = analyzer.analyze(messages, people)
+    for r in results:
+        name = r.person.name
+        write_dict_to_file(os.path.join(output_dirs[name], 'words.txt'), r.words)
+        write_dict_to_file(os.path.join(output_dirs[name], 'swear_words.txt'), r.swear_words)
     
 
-def most_common_words(messages: list[WhatsappMessage], stop_words: set[str]):
-    word_count = {}
-    for m in messages:
-        for word in m.content.split():
-            if word in stop_words:
-                continue
-            if word in word_count:
-                word_count[word] += 1
-            else:
-                word_count[word] = 1
-    return {k: v for k, v in sorted(word_count, key=lambda item: item[1], reverse=True)}
+def write_dict_to_file(filename: str, d: dict):
+    with open(filename, 'w') as wf:
+        for k, v in d.items():
+            wf.write(f'{k}: {v}\n')
 
 
 def normalize_str(s: str):
@@ -47,6 +53,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename')
     parser.add_argument('--dateformat', default='%d/%m/%Y, %H:%M:%S')
+    parser.add_argument('--output-dir', default='results')
     return parser.parse_args()
     
 
