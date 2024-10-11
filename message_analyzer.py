@@ -1,3 +1,6 @@
+import os
+from collections import Counter
+
 from message_parser import WhatsappMessage, Person, People
 
 
@@ -6,6 +9,31 @@ class AnalysisResults:
         self.person = person
         self.words = words
         self.swear_words = swear_words
+
+    @staticmethod
+    def __write_dict_to_file(filename: str, d: dict):
+        with open(filename, 'w') as wf:
+            for k, v in d.items():
+                wf.write(f'{k}: {v}\n')
+
+    def to_file(self, output_dir: str):
+        path = os.path.join(output_dir, self.person.name)
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        AnalysisResults.__write_dict_to_file(os.path.join(path, f'{self.person.name}_words.txt'), self.words)
+        AnalysisResults.__write_dict_to_file(os.path.join(path, f'{self.person.name}_swear_words.txt'), self.swear_words)
+    
+    @staticmethod
+    def combine(lst: list['AnalysisResults']):
+        words = Counter()
+        swear_words = Counter()
+        
+        for r in lst:
+            words.update(r.words)
+            swear_words.update(r.swear_words)
+
+        return AnalysisResults(Person('Geral'), dict(words), dict(swear_words))
 
 
 class MessagesAnalyzer:

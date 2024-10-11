@@ -13,22 +13,12 @@ def main(args):
         stop_words=read_wordlist_dir('stop_words'),
         swear_words=read_wordlist_dir('swear_words')
     )
-    
-    output_dirs = {p.name: os.path.join(args.output_dir, p.name) for p in people.people}
-    for r in output_dirs.values():
-        os.makedirs(r, exist_ok=True)
 
     results: list[AnalysisResults] = analyzer.analyze(messages, people)
     for r in results:
-        name = r.person.name
-        write_dict_to_file(os.path.join(output_dirs[name], 'words.txt'), r.words)
-        write_dict_to_file(os.path.join(output_dirs[name], 'swear_words.txt'), r.swear_words)
+        r.to_file(args.output_dir)
     
-
-def write_dict_to_file(filename: str, d: dict):
-    with open(filename, 'w') as wf:
-        for k, v in d.items():
-            wf.write(f'{k}: {v}\n')
+    AnalysisResults.combine(results).to_file(args.output_dir)
 
 
 def normalize_str(s: str):
