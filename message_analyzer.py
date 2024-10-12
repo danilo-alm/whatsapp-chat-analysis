@@ -9,12 +9,21 @@ class AnalysisResults:
         self.person = person
         self.words = words
         self.swear_words = swear_words
+        self.__sort_results()
 
     @staticmethod
     def __write_dict_to_file(filename: str, d: dict):
         with open(filename, 'w') as wf:
             for k, v in d.items():
                 wf.write(f'{k}: {v}\n')
+    
+    @staticmethod
+    def __sort_counter(d: dict[str, int]):
+        return {k: v for k, v in sorted(d.items(), key=lambda x: x[1], reverse=True)}
+
+    def __sort_results(self):
+        self.words = AnalysisResults.__sort_counter(self.words)
+        self.swear_words = AnalysisResults.__sort_counter(self.swear_words)
 
     def to_file(self, output_dir: str):
         path = os.path.join(output_dir, self.person.name)
@@ -32,7 +41,7 @@ class AnalysisResults:
         for r in lst:
             words.update(r.words)
             swear_words.update(r.swear_words)
-
+        
         return AnalysisResults(Person('Geral'), dict(words), dict(swear_words))
 
 
@@ -48,10 +57,6 @@ class MessagesAnalyzer:
         else:
             counter[word] = 1
     
-    @staticmethod
-    def __sort_counter(d: dict[str, int]):
-        return {k: v for k, v in sorted(d.items(), key=lambda x: x[1], reverse=True)}
-
     def analyze(self, messages: list[WhatsappMessage], people: People):
         counters = {p.name: {
             'words': {},
@@ -66,10 +71,6 @@ class MessagesAnalyzer:
                 MessagesAnalyzer.__register_in_counter(counters[m.sender.name]['words'], word)
                 if word in self.swear_words:
                     MessagesAnalyzer.__register_in_counter(counters[m.sender.name]['swear_words'], word)
-        
-        for mycounters in counters.values():
-            for counter in mycounters:
-                mycounters[counter] = MessagesAnalyzer.__sort_counter(mycounters[counter])
         
         results = []
         for c in counters:
