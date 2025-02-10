@@ -14,3 +14,6 @@ stopwords-pt:
 swearwords-pt:
 - https://github.com/masterzion/mztg/
 - https://github.com/dunossauro/chat-detox
+
+# TODO
+- Generate plots w/ Matplotlib & Seborn for more insightful data
